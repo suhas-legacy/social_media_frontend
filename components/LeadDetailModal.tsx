@@ -20,6 +20,18 @@ export default function LeadDetailModal({ leadId, onClose, onUpdate }: Props) {
   const [submittingNote, setSubmittingNote] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
 
+  // Edit states
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editJobTitle, setEditJobTitle] = useState('');
+  const [editCompany, setEditCompany] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editWebsite, setEditWebsite] = useState('');
+  const [editLinkedinUrl, setEditLinkedinUrl] = useState('');
+
   useEffect(() => {
     fetchDetail();
     if (currentUser?.role === 'admin') {
@@ -34,11 +46,46 @@ export default function LeadDetailModal({ leadId, onClose, onUpdate }: Props) {
     try {
       const data = await api.getLead(leadId);
       setDetail(data);
+      if (data?.lead) {
+        setEditName(data.lead.full_name || '');
+        setEditJobTitle(data.lead.job_title || '');
+        setEditCompany(data.lead.company || '');
+        setEditEmail(data.lead.email || '');
+        setEditPhone(data.lead.phone || '');
+        setEditLocation(data.lead.location || '');
+        setEditWebsite(data.lead.website || '');
+        setEditLinkedinUrl(data.lead.linkedin_url || '');
+      }
     } catch (err: any) {
       toast.error(err.message || 'Failed to load lead details');
       onClose();
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSaveEdit() {
+    if (!editName.trim()) return toast.error('Full Name is required');
+    setSaving(true);
+    try {
+      await api.updateLead(leadId, {
+        full_name: editName.trim(),
+        job_title: editJobTitle.trim() || null as any,
+        company: editCompany.trim() || null as any,
+        email: editEmail.trim() || null as any,
+        phone: editPhone.trim() || null as any,
+        location: editLocation.trim() || null as any,
+        website: editWebsite.trim() || null as any,
+        linkedin_url: editLinkedinUrl.trim() || null as any,
+      });
+      toast.success('Lead updated successfully');
+      setIsEditing(false);
+      fetchDetail();
+      onUpdate();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update lead');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -102,18 +149,83 @@ export default function LeadDetailModal({ leadId, onClose, onUpdate }: Props) {
       <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-base shadow-sm">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-base shadow-sm flex-shrink-0">
               {lead.full_name?.charAt(0).toUpperCase() || 'U'}
             </div>
-            <div>
-              <h2 className="font-bold text-lg text-slate-800">{lead.full_name || 'Unknown Lead'}</h2>
-              <p className="text-xs text-slate-400 mt-0.5">{lead.job_title ? `${lead.job_title} at ` : ''}{lead.company || 'Unknown Company'}</p>
-            </div>
+            {isEditing ? (
+              <div className="flex flex-col gap-1.5 w-full max-w-md">
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  placeholder="Full Name"
+                  className="font-bold text-sm text-slate-800 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={editJobTitle}
+                    onChange={e => setEditJobTitle(e.target.value)}
+                    placeholder="Job Title"
+                    className="text-xs font-semibold text-slate-700 px-3 py-1 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 flex-1"
+                  />
+                  <span className="text-slate-400 text-xs font-bold">at</span>
+                  <input
+                    type="text"
+                    value={editCompany}
+                    onChange={e => setEditCompany(e.target.value)}
+                    placeholder="Company"
+                    className="text-xs font-semibold text-slate-700 px-3 py-1 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 flex-1"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="min-w-0">
+                <h2 className="font-bold text-lg text-slate-800 truncate">{lead.full_name || 'Unknown Lead'}</h2>
+                <p className="text-xs text-slate-400 mt-0.5 truncate">{lead.job_title ? `${lead.job_title} at ` : ''}{lead.company || 'Unknown Company'}</p>
+              </div>
+            )}
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {isEditing ? (
+              <>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={saving}
+                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50 cursor-pointer shadow-sm shadow-blue-500/10"
+                >
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditName(lead.full_name || '');
+                    setEditJobTitle(lead.job_title || '');
+                    setEditCompany(lead.company || '');
+                    setEditEmail(lead.email || '');
+                    setEditPhone(lead.phone || '');
+                    setEditLocation(lead.location || '');
+                    setEditWebsite(lead.website || '');
+                    setEditLinkedinUrl(lead.linkedin_url || '');
+                  }}
+                  className="px-3.5 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-lg text-xs font-bold transition-all cursor-pointer bg-white"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="px-3.5 py-1.5 bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm"
+              >
+                Edit Details
+              </button>
+            )}
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Content Body */}
@@ -122,30 +234,104 @@ export default function LeadDetailModal({ leadId, onClose, onUpdate }: Props) {
           <div className="space-y-6">
             <div>
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Contact Details</h3>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3 text-sm text-slate-650">
-                  <Mail className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                  {lead.email ? <a href={`mailto:${lead.email}`} className="hover:underline text-blue-600 font-medium">{lead.email}</a> : <span className="text-slate-400">No email</span>}
-                </div>
-                <div className="flex items-center gap-3 text-sm text-slate-650">
-                  <Phone className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                  {lead.phone ? <span className="font-semibold text-slate-700">{lead.phone}</span> : <span className="text-slate-400">No phone</span>}
-                </div>
-                <div className="flex items-center gap-3 text-sm text-slate-650">
-                  <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                  {lead.location ? <span className="font-semibold text-slate-700">{lead.location}</span> : <span className="text-slate-400">No location</span>}
-                </div>
-                <div className="flex items-center gap-3 text-sm text-slate-650">
-                  <Globe className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                  {lead.website ? <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener noreferrer" className="hover:underline text-blue-600 font-medium truncate">{lead.website}</a> : <span className="text-slate-400">No website</span>}
-                </div>
-                {lead.linkedin_url && (
-                  <div className="flex items-center gap-3 text-sm text-slate-650">
-                    <Briefcase className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                    <a href={lead.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:underline text-blue-600 font-medium truncate">{lead.linkedin_url}</a>
+              {isEditing ? (
+                <div className="space-y-3.5">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Email Address</label>
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all">
+                      <Mail className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <input
+                        type="email"
+                        value={editEmail}
+                        onChange={e => setEditEmail(e.target.value)}
+                        placeholder="john@example.com"
+                        className="w-full text-xs font-medium text-slate-700 bg-transparent focus:outline-none"
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Phone Number</label>
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all">
+                      <Phone className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <input
+                        type="text"
+                        value={editPhone}
+                        onChange={e => setEditPhone(e.target.value)}
+                        placeholder="+1 (555) 000-0000"
+                        className="w-full text-xs font-medium text-slate-700 bg-transparent focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Location</label>
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all">
+                      <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <input
+                        type="text"
+                        value={editLocation}
+                        onChange={e => setEditLocation(e.target.value)}
+                        placeholder="New York, NY"
+                        className="w-full text-xs font-medium text-slate-700 bg-transparent focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Website URL</label>
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all">
+                      <Globe className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <input
+                        type="text"
+                        value={editWebsite}
+                        onChange={e => setEditWebsite(e.target.value)}
+                        placeholder="example.com"
+                        className="w-full text-xs font-medium text-slate-700 bg-transparent focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">LinkedIn Profile URL</label>
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all">
+                      <Briefcase className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <input
+                        type="text"
+                        value={editLinkedinUrl}
+                        onChange={e => setEditLinkedinUrl(e.target.value)}
+                        placeholder="https://linkedin.com/in/username"
+                        className="w-full text-xs font-medium text-slate-700 bg-transparent focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 text-sm text-slate-650">
+                    <Mail className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                    {lead.email ? <a href={`mailto:${lead.email}`} className="hover:underline text-blue-600 font-medium">{lead.email}</a> : <span className="text-slate-400">No email</span>}
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-slate-650">
+                    <Phone className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                    {lead.phone ? <span className="font-semibold text-slate-700">{lead.phone}</span> : <span className="text-slate-400">No phone</span>}
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-slate-650">
+                    <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                    {lead.location ? <span className="font-semibold text-slate-700">{lead.location}</span> : <span className="text-slate-400">No location</span>}
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-slate-650">
+                    <Globe className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                    {lead.website ? <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener noreferrer" className="hover:underline text-blue-600 font-medium truncate">{lead.website}</a> : <span className="text-slate-400">No website</span>}
+                  </div>
+                  {lead.linkedin_url && (
+                    <div className="flex items-center gap-3 text-sm text-slate-650">
+                      <Briefcase className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <a href={lead.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:underline text-blue-600 font-medium truncate">{lead.linkedin_url}</a>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Status & Priority Selection */}

@@ -41,6 +41,8 @@ export const api = {
     return request<LeadsResponse>('GET', `/leads${qs}`);
   },
   getLead: (id: string) => request<LeadDetail>('GET', `/leads/${id}`),
+  updateLead: (id: string, data: Partial<Lead>) =>
+    request('PATCH', `/leads/${id}`, data),
   updateStatus: (id: string, status: string) =>
     request('PATCH', `/leads/${id}/status`, { status }),
   addNote: (id: string, note: string) =>
